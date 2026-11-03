@@ -27,9 +27,19 @@ jobs:
         run: |
           $dir = Join-Path $env:RUNNER_TEMP 'shortcuts'; New-Item -ItemType Directory -Force -Path $dir | Out-Null
           & .\tools\install.ps1 -ShortcutDirectory $dir
-          $link = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $dir 'Codex 启动动画.lnk'))
-          Write-Host "$($link.TargetPath) $($link.Arguments)"
-          if ($link.Arguments -notmatch '-Notify' -or $link.Arguments -notmatch 'Hidden') { exit 1 }
+          $shell = New-Object -ComObject WScript.Shell
+          $links = @(Get-ChildItem -LiteralPath $dir -Filter *.lnk)
+          if ($links.Count -ne 3) { Write-Host "expected 3 shortcuts, got $($links.Count)"; exit 1 }
+          $launch = $null
+          foreach ($file in $links) {
+            # Read through an ASCII copy: WScript.Shell cannot open non-ANSI file names here either.
+            $copy = Join-Path $env:RUNNER_TEMP 'probe.lnk'; Copy-Item -LiteralPath $file.FullName -Destination $copy -Force
+            $link = $shell.CreateShortcut($copy)
+            if ($link.Arguments -match 'launch-windows\.ps1') { $launch = $link }
+          }
+          if (-not $launch) { Write-Host 'launch shortcut not found'; exit 1 }
+          Write-Host "$($launch.TargetPath) $($launch.Arguments)"
+          if ($launch.Arguments -notmatch '-Notify' -or $launch.Arguments -notmatch 'Hidden') { exit 1 }
       - run: npm test
       - run: choco install ffmpeg --no-progress -y
       - run: npm run test:media
