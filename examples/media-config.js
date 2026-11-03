@@ -1,0 +1,1 @@
+window.AEMEATH_MEDIA={"id":"587a572d4c2d1415","type":"image","durationMs":5000};

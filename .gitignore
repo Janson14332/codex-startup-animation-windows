@@ -1,0 +1,19 @@
+# Local media and generated runtime files
+/assets/*
+!/assets/README.md
+/素材/*
+!/素材/README.md
+
+# Builds, local configuration, diagnostics
+/.build/
+/dist/
+/node_modules/
+*.zip
+*.lnk
+*.log
+.env
+.env.*
+!.env.example
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>爱弥斯 · 光绘启动动画</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="assets/media-config.js" defer></script>
+  <script src="assets/contours.js" defer></script>
+  <script src="image-settings.js" defer></script>
+  <script src="animation.js" defer></script>
+</head>
+<body>
+  <main class="preview">
+    <header class="preview-heading"><span><i></i> AEMEATH</span><span>STARTUP SEQUENCE / 01</span></header>
+    <section class="window" aria-label="爱弥斯光绘启动动画">
+      <div class="end-screen" aria-live="polite">
+        <span class="end-star">✧</span>
+        <p class="eyebrow">CONNECTION ESTABLISHED</p>
+        <h1>Codex 已就绪</h1>
+        <p class="end-description">光绘开场预览结束</p>
+        <button class="replay-end" type="button">再看一次 <span>↻</span></button>
+      </div>
+      <div class="scene" aria-hidden="true">
+        <img class="artwork" src="assets/artwork.png" alt="" decoding="async" fetchpriority="high">
+        <video class="reveal-video" muted playsinline preload="auto" aria-hidden="true"></video>
+        <canvas class="line-art" width="1280" height="720"></canvas>
+        <div class="shade"></div>
+        <div class="scanlines"></div>
+        <div class="light-sweep"></div>
+        <div class="particles"></div>
+        <div class="hud">
+          <div class="corner top-left"></div><div class="corner top-right"></div>
+          <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
+          <div class="sync">
+            <div class="sync-label"><span>SYNC RATIO</span><span id="ratio">00.00%</span></div>
+            <div class="sync-track"><div class="sync-fill"></div></div>
+            <span class="sync-phase">INITIALIZING</span>
+          </div>
+          <div class="coordinates"><span>RESONANCE / AEMEATH</span><span id="timecode">00:00:00</span></div>
+        </div>
+        <div class="boot-grid"></div>
+        <div class="boot-corners"><i class="corner top-left"></i><i class="corner top-right"></i><i class="corner bottom-left"></i><i class="corner bottom-right"></i></div>
+        <div class="intro"><div class="pulse"><i></i><i></i><b></b></div></div>
+        <div class="transition-flash" aria-hidden="true"></div>
+      </div>
+      <div class="shutter-line" aria-hidden="true"></div>
+      <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+      <button id="image-settings" type="button">图片设置</button>
+      <button class="skip" type="button" title="跳过动画（Esc）" aria-label="跳过动画">CLICK / ESC TO SKIP</button>
+      <p id="asset-error" hidden>动画素材加载失败，请确认 assets 文件夹完整。</p>
+      <dialog id="settings-dialog" aria-labelledby="settings-title">
+        <form method="dialog"><button class="settings-close" aria-label="关闭图片设置">×</button></form>
+        <p class="eyebrow">YOUR STARTUP</p><h2 id="settings-title">换成你喜欢的画面</h2>
+        <p class="settings-description" id="media-description">支持自定义视频或图片；使用桌面「Codex 更换启动素材」同步更新正式启动与预览。</p>
+        <div class="image-choices">
+          <label class="image-choice"><img id="artwork-preview" src="assets/artwork.png" alt="当前背景"><span>当前环境的背景与线稿</span><small>临时覆盖为图片渐亮；项目素材由桌面更换入口管理</small><span class="choose-label">更换背景</span><input id="artwork-file" type="file" accept="image/png,image/jpeg,image/webp" aria-label="更换背景"></label>
+        </div>
+        <label class="wallpaper-setting" for="wallpaper-strength"><span>Codex 背景显现程度</span><output id="wallpaper-value">42%</output><input id="wallpaper-strength" type="range" min="0" max="75" step="1" value="42"><small>启动结束后，背景继续铺满窗口。0% 为不显示背景。</small></label>
+        <p id="settings-status" role="status">图片保存在本机，不会上传。非标准比例会居中裁切。</p>
+        <div class="settings-actions"><button id="reset-images" type="button">恢复默认图片</button><button id="preview-images" type="button">保存并预览</button></div>
+        <button id="restore-appearance" type="button" hidden>关闭美化，恢复 Codex 外观</button>
+      </dialog>
+    </section>
+    <footer class="controls">
+      <div class="playback-buttons"><button id="replay" type="button" aria-label="重播光绘动画">↻ <span>重播</span></button><button id="pause" type="button">暂停</button></div>
+      <input id="timeline" aria-label="动画时间轴" type="range" min="0" max="1" step="0.01" value="0">
+      <output id="elapsed">00.0 <span>/ --s</span></output>
+      <button class="native-launch" type="button" hidden>播放并打开 Codex ↗</button>
+    </footer>
+    <p class="preview-note"><span id="clip-duration">完整视频 · 可随时跳过</span><span>画面百分比为动画进度</span></p>
+  </main>
+</body>
+</html>
