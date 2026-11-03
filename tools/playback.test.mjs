@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 test('图片模式不加载视频，完整播放线稿、图片在线稿下亮起和收尾',async()=>{
   const nodes=new Map(),frames=[];let videoPlays=0,strokes=0;
-  const context={clearRect(){},setTransform(){},beginPath(){},moveTo(){},lineTo(){},stroke(){strokes++;}};
+  const context={clearRect(){},setTransform(){},beginPath(){},moveTo(){},lineTo(){},arc(){},fill(){},fillRect(){},createRadialGradient:()=>({addColorStop(){}}),stroke(){strokes++;}};
   function node(){return {style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},appendChild(){},querySelectorAll(){return [];},getContext(){return context;},decode:async()=>{},open:false};}
   const select=key=>{if(!nodes.has(key))nodes.set(key,node());return nodes.get(key);};
   const video=select('.reveal-video');

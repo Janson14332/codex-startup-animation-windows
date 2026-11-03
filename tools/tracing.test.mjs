@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {pictureBounds} from './media-builder.mjs';
-const {vectorize,palette}=createRequire(import.meta.url)('../image-settings.js');
+const {vectorize,palette,focusPoint}=createRequire(import.meta.url)('../image-settings.js');
 
 // A square picture letterboxed into 16:9: black bars, a dark-blue field and a pink disc.
 function letterboxed(){
@@ -40,4 +40,22 @@ test('从画面取主色，纯灰画面回退默认色',()=>{
   assert.ok(r>b,'pink disc dominates the line colour');
   const gray=new Uint8Array(64*36*4).fill(128);
   assert.equal(palette(gray,64,36).line,'#d7eaff');
+});
+
+test('低对比画面自动降低阈值，仍能生成线稿',()=>{
+  const width=640,height=360,pixels=new Uint8Array(width*height*4);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const inside=Math.hypot(x-320,y-180)<100,value=inside?90:84; // ~2 % contrast
+    pixels.set([value,value,value+8,255],(y*width+x)*4);
+  }
+  assert.equal(vectorize(pixels,640,360,{minPaths:0}).length,0,'default threshold finds nothing');
+  assert.ok(vectorize(pixels,640,360).length>0);
+});
+
+test('焦点落在线稿最密集的区域附近',()=>{
+  const dense=[];for(let i=0;i<40;i++)dense.push([[900+i*3,200],[900+i*3,260]]);
+  const sparse=[[[100,600],[300,600]],[[100,650],[300,650]]];
+  const [x,y]=focusPoint([...dense,...sparse]);
+  assert.ok(x>700&&y<400,`focus ${x},${y}`);
+  assert.deepEqual(focusPoint([]),[640,360]);
 });
