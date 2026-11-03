@@ -5,8 +5,10 @@
   const imageMode=media.type==='image';
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const videoDuration = Math.max(1000,Math.round(Number(media.durationMs)||9913));
-  // One clock drives every stage. The picture rises *beneath* the finished line art, so
-  // the strokes visibly turn into the image instead of vanishing into a dark gap.
+  // One clock drives every stage. A point ignites on the picture's focus and sends out a
+  // wave; strokes wake where the wave passes and spiral into place, focus first. The
+  // picture then rises *beneath* the finished line art.
+  const waveStart = 120, waveEnd = 1000;      // wave travels from the focus to the farthest stroke
   const drawStart = reduced ? 0 : 400;        // fragments start gathering
   const drawEnd = reduced ? 0 : 2200;         // complete line art
   const revealStart = reduced ? 0 : 2500;     // picture/video begins under the strokes
@@ -23,11 +25,10 @@
   if(embedded)document.body.classList.add('embedded');
   if(reduced)document.body.classList.add('reduced-motion');
   const root = $('.window'), art = $('.artwork'), scene = $('.scene');
-  const video = $('.reveal-video'), wash = $('.end-wash'), shade = $('.shade');
-  const hud = $('.hud'), intro = $('.intro'), pulseNode = $('.pulse'), syncFill = $('.sync-fill');
+  const video = $('.reveal-video'), wash = $('.end-wash'), shade = $('.shade'), underlay = $('.underlay');
+  const hud = $('.hud'), syncFill = $('.sync-fill');
   const ratioText = $('#ratio'), phaseText = $('.sync-phase'), timecode = $('#timecode'), elapsedText = $('#elapsed');
   const slider = $('#timeline'), pause = $('#pause');
-  const rings = Array.from(document.querySelectorAll('.pulse i'));
   slider.max=String(duration/1000);
   $('#clip-duration').textContent=imageMode?`自定义图片 · ${(videoDuration/1000).toFixed(1)} 秒渐亮 · 点击画面或 Esc 跳过`:`完整 ${(videoDuration/1000).toFixed(1)} 秒视频 · 点击画面或 Esc 跳过`;
   $('#media-description').textContent=`当前使用${imageMode?'图片渐亮':'完整视频'}。要同步更换预览与正式启动的素材，请使用桌面「Codex 更换启动素材」。这里可临时覆盖当前环境的背景与线稿。`;
@@ -56,6 +57,7 @@
   // Colours come from the picture (see palette() in image-settings.js).
   const defaultPalette={line:'#d7eaff',accent:'#8cb9e0',highlight:'#e8f4ff'};
   let colors=defaultPalette;
+  const rgba=(hex,alpha)=>`rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${alpha})`;
   function applyPalette(value){
     const valid=c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c);
     colors=value&&valid(value.line)&&valid(value.accent)&&valid(value.highlight)?value:defaultPalette;
@@ -87,17 +89,24 @@
     const full=new Path2D();points.forEach((point,i)=>i?full.lineTo(...point):full.moveTo(...point));
     return {points,total,full};
   }); }
+  // Focus of the picture, found from the line art itself (see focusPoint() in
+  // image-settings.js) so it works for any material, including older generated assets.
+  const findFocus=list=>window.imageSettings?.focusPoint?window.imageSettings.focusPoint(list.map(path=>path.points)):[640,360];
+  let focus=[640,360],reach=800;
   function prepareFragments(paths){
     const result=[],span=Math.max(18,paths.reduce((sum,path)=>sum+path.total,0)/1400);
     const noise=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
-    const within=(value,low,high)=>Math.max(low,Math.min(high,value));
+    focus=findFocus(paths);
     function add(points){
       if(points.length<2)return;
       const first=points[0],last=points[points.length-1],x=(first[0]+last[0])/2,y=(first[1]+last[1])/2;
       const seed=result.length+1,phase=noise(seed+811)*Math.PI*2;
-      // Start positions stay near their target (clamped, never wrapped across the frame).
-      result.push({x,y,points:points.map(point=>[point[0]-x,point[1]-y]),
-        sx:within(x+(noise(seed)-.5)*380,-30,1310),sy:within(y+(noise(seed+271)-.5)*240,-30,750),
+      // Each stroke starts pushed outward from the focus and slightly sideways, then
+      // spirals in; the rotation is shared, so the whole field reads as one vortex.
+      const dx=x-focus[0],dy=y-focus[1],distance=Math.hypot(dx,dy)||1,ux=dx/distance,uy=dy/distance;
+      const push=60+150*noise(seed),side=(noise(seed+271)-.5)*140;
+      const ox=ux*push-uy*side,oy=uy*push+ux*side;
+      result.push({x,y,points:points.map(point=>[point[0]-x,point[1]-y]),ox,oy,sx:x+ox,sy:y+oy,distance,
         angle:(noise(seed+563)-.5)*Math.PI*2,seed:phase,sinSeed:Math.sin(phase),cosSeed:Math.cos(phase)});
     }
     for(const path of paths){
@@ -115,6 +124,8 @@
       }
       add(chunk);
     }
+    reach=Math.max(200,...result.map(fragment=>Math.hypot(fragment.sx-focus[0],fragment.sy-focus[1])))+40;
+    for(const fragment of result)fragment.d=Math.min(1,fragment.distance/(reach-40));
     return result;
   }
   let paths=preparePaths(window.CONTOUR_PATHS || []),fragments=prepareFragments(paths);
@@ -128,29 +139,57 @@
     }
   }
   function clearLines(){if(!cleared){ctx.clearRect(0,0,1280,720);cleared=true;lastTrace=-1;}}
+  // Ignition point, glow and wave rings, drawn in the same coordinate space as the strokes
+  // so they stay on the focus at every window size and crop.
+  function drawIntro(t,wave){
+    const [fx,fy]=focus,dot=smooth(t/180)*(1-smooth((t-900)/500));
+    if(dot>0){
+      const glow=ctx.createRadialGradient(fx,fy,0,fx,fy,170);
+      glow.addColorStop(0,rgba(colors.accent,.32*dot));glow.addColorStop(1,rgba(colors.accent,0));
+      ctx.globalAlpha=1;ctx.fillStyle=glow;ctx.fillRect(fx-170,fy-170,340,340);
+      ctx.fillStyle=colors.line;ctx.globalAlpha=dot;
+      ctx.beginPath();ctx.arc(fx,fy,2.6+1.2*Math.sin(t/90),0,Math.PI*2);ctx.fill();
+    }
+    for(const [lag,strength] of [[0,.75],[.14,.35]]){
+      const r=clamp(wave-lag)/(1-lag);
+      if(r<=0||r>=1)continue;
+      ctx.globalAlpha=strength*Math.pow(1-r,1.3);ctx.strokeStyle=colors.highlight;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.arc(fx,fy,Math.max(1,r*reach),0,Math.PI*2);ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
   // p: gathering progress 0..1. glow: 0..1 emphasis while the finished drawing holds.
-  function trace(p,drift=0,glow=0) {
-    const stamp=p===1?1+glow:p+drift*.00001;
+  // wave: 0..1 how far the ignition wave has travelled; strokes appear as it passes.
+  function trace(p,drift=0,glow=0,wave=1,t=Infinity) {
+    const intro=wave<1||t<1400;
+    const stamp=p===1&&!intro?1+glow:p+drift*.00001+wave;
     if(stamp===lastTrace)return;lastTrace=stamp;cleared=false;
     ctx.clearRect(0,0,1280,720);
     ctx.lineCap='round';ctx.lineJoin='round';
+    if(intro)drawIntro(t,wave);
     if(p===1){
       ctx.strokeStyle=colors.line;ctx.lineWidth=1.35+.5*glow;ctx.globalAlpha=.88+.12*glow;
       paths.forEach(path=>ctx.stroke(path.full));
     }else{
-      // Arrival time follows target X: a sweep from left to right. Fragments that are
-      // landing right now form a brighter front in the picture's secondary colour.
-      const settled=new Path2D(),front=new Path2D();
+      // Arrival follows distance from the focus, so the subject resolves first and the
+      // drawing grows outward. Fragments landing right now form a brighter front in the
+      // picture's secondary colour.
+      const loose=new Path2D(),settled=new Path2D(),front=new Path2D();
       const edge=p*1.5-.25;
       const swayX=drift*.8,swayY=drift*.6;
       const sinX=Math.sin(swayX),cosX=Math.cos(swayX),sinY=Math.sin(swayY),cosY=Math.cos(swayY);
       for(const fragment of fragments){
-        const arrival=smooth((edge-fragment.x/1280+.16)/.32),loose=1-arrival;
-        const x=fragment.sx*loose+fragment.x*arrival+(sinX*fragment.cosSeed+cosX*fragment.sinSeed)*7*loose;
-        const y=fragment.sy*loose+fragment.y*arrival+(cosY*fragment.cosSeed-sinY*fragment.sinSeed)*7*loose;
-        addFragment(arrival>.3&&arrival<.92?front:settled,fragment,x,y,fragment.angle*loose,.16+.84*arrival);
+        const awake=smooth((wave-fragment.d)/.12);
+        if(awake<=0)continue;
+        const arrival=smooth((edge-fragment.d+.16)/.32),away=1-arrival;
+        const spin=.9*away,cs=Math.cos(spin),sn=Math.sin(spin);
+        const x=fragment.x+(fragment.ox*cs-fragment.oy*sn)*away+(sinX*fragment.cosSeed+cosX*fragment.sinSeed)*7*away;
+        const y=fragment.y+(fragment.ox*sn+fragment.oy*cs)*away+(cosY*fragment.cosSeed-sinY*fragment.sinSeed)*7*away;
+        // Still-drifting strokes stay dim so the waiting field reads as depth, not noise.
+        addFragment(arrival<=.3?loose:arrival<.92?front:settled,fragment,x,y,fragment.angle*away,(.16+.84*arrival)*awake);
       }
-      ctx.globalAlpha=.8;ctx.strokeStyle=colors.line;ctx.lineWidth=1.35;ctx.stroke(settled);
+      ctx.globalAlpha=.38;ctx.strokeStyle=colors.line;ctx.lineWidth=1.2;ctx.stroke(loose);
+      ctx.globalAlpha=.8;ctx.lineWidth=1.35;ctx.stroke(settled);
       ctx.globalAlpha=1;ctx.strokeStyle=colors.highlight;ctx.lineWidth=1.8;ctx.stroke(front);
     }
     ctx.globalAlpha=1;
@@ -191,20 +230,15 @@
     scene.style.transform=reduced||!closing?'none':`scale(${1+.035*easeIn(c)})`;
     wash.style.opacity=String(closing?smooth(c/.55)*washTarget:0);
 
-    intro.style.opacity=String(reduced?0:1-smooth((t-250)/350));
-    if(!reduced&&t<700){
-      pulseNode.style.opacity=String(1-smooth((t-200)/450));
-      rings.forEach((ring,i)=>{
-        const phase=(s*1.15+i*.5)%1;
-        ring.style.transform=`scale(${.25+phase*.9})`;ring.style.opacity=String((1-phase)*.8);
-      });
-    }
     const drawing=clamp((t-drawStart)/Math.max(1,drawEnd-drawStart));
+    const wave=easeOut((t-waveStart)/(waveEnd-waveStart));
     if(reduced)clearLines();
-    else if(t>=drawStart&&t<lineOutStart)trace(drawing,s,t>=drawEnd?Math.sin(Math.PI*clamp((t-drawEnd)/(lineOutStart-drawEnd))):0);
+    else if(t<lineOutStart)trace(drawing,s,t>=drawEnd?Math.sin(Math.PI*clamp((t-drawEnd)/(lineOutStart-drawEnd))):0,wave,t);
     else if(t>=lineOutStart&&t<lineOutEnd)disperse((t-lineOutStart)/(lineOutEnd-lineOutStart));
     else clearLines();
-    canvas.style.opacity=String(reduced?0:smooth((t-drawStart+150)/300));
+    canvas.style.opacity=reduced?'0':'1';
+    // A faint, heavily blurred copy of the picture tints the dark opening with its colours.
+    underlay.style.opacity=String(reduced?0:.16*smooth(t/800));
     canvas.dataset.dissolve='1.000';
     const useVideo=!customArtwork&&videoAvailable;
     video.style.opacity=String(useVideo?smooth((t-revealStart)/(reduced?300:600)):0);
@@ -214,7 +248,9 @@
     art.style.filter=useVideo?'none':`brightness(${.32+.68*easeOut((t-revealStart)/revealDuration)})`;
     shade.style.opacity=String(smooth((t-revealStart)/1200)*.26);
     // The HUD frames the drawing only; it steps aside once the picture appears.
-    hud.style.opacity=String(reduced?0:smooth((t-drawStart)/400)*(1-smooth((t-revealStart)/500)));
+    hud.style.opacity=String(reduced?0:smooth((t-100)/400)*(1-smooth((t-revealStart)/500)));
+    // Corner brackets close in like a viewfinder focusing, in step with the wave.
+    hud.style.setProperty?.('--inset',`${((1-easeOut((t-100)/800))*30).toFixed(1)}px`);
     syncFill.style.transform=`scaleX(${drawing})`;
     particles.forEach((node,i)=>{
       node.style.opacity=String(smooth((t-revealStart)/1200)*(1-c)*(.1+.22*(.5+.5*Math.sin(s*.9+i))));
@@ -339,15 +375,16 @@
   }
   async function applyImages(images){
     customArtwork=Boolean(images.artwork);
-    art.src=images.artwork||assets.artwork;
+    art.src=images.artwork||assets.artwork;underlay.src=art.src;
     await art.decode();
     paths=preparePaths(images.contours||window.CONTOUR_PATHS||[]);fragments=prepareFragments(paths);lastTrace=-1;
     if(!paths.length)throw new Error('图片轮廓数据缺失');
     applyPalette(images.artwork?images.palette:media.palette);
     wallpaperStrength=Number.isFinite(images.wallpaperStrength)?images.wallpaperStrength:42;
-    const focus=focusPositions[images.wallpaperFocus]||'50%';
-    art.style.objectPosition=`${focus} 50%`;
-    send('background',{image:art.src,strength:wallpaperStrength,focus});
+    const position=focusPositions[images.wallpaperFocus]||'50%';
+    // Every layer is cover-cropped the same way, so line art stays on top of the picture.
+    for(const layer of [art,underlay,canvas,video])layer.style.objectPosition=`${position} 50%`;
+    send('background',{image:art.src,strength:wallpaperStrength,focus:position});
   }
   $('#wallpaper-strength').addEventListener('input',event=>{
     pendingImages.wallpaperStrength=Number(event.target.value);

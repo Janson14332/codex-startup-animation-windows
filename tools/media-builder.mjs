@@ -78,13 +78,13 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',still,'-vf','scale=640:360,format=rgba','-frames:v','1','-f','rawvideo',raw]);
     const pixels=await readFile(raw);
     if(pixels.length!==640*360*4)throw new Error('素材无法生成线稿。');
-    const {vectorize,palette}=createRequire(import.meta.url)(join(root,'image-settings.js'));
+    const {vectorize,palette,focusPoint}=createRequire(import.meta.url)(join(root,'image-settings.js'));
     const bounds=pictureBounds(inputWidth,inputHeight);
     const contours=vectorize(pixels,640,360,{bounds});
     if(!contours.length)throw new Error('画面没有可用轮廓，请选择边缘更清晰的素材。');
     const durationMs=Math.round(duration*1000);
     const id=createHash('sha256').update(`${type}:${durationMs}:`).update(await readFile(type==='video'?movie:still)).digest('hex').slice(0,16);
-    const media={id,type,durationMs,palette:palette(pixels,640,360,{bounds})};
+    const media={id,type,durationMs,palette:palette(pixels,640,360,{bounds,focus:focusPoint(contours)})};
     await writeFile(join(stage,'contours.js'),`window.CONTOUR_PATHS=${JSON.stringify(contours)};\n`);
     await writeFile(join(stage,'media-config.json'),JSON.stringify(media,null,2)+'\n');
     await writeFile(join(stage,'media-config.js'),`window.AEMEATH_MEDIA=${JSON.stringify(media)};\n`);
