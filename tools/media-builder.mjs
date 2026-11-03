@@ -8,7 +8,18 @@ import {fileURLToPath} from 'node:url';
 const projectRoot=dirname(dirname(fileURLToPath(import.meta.url)));
 const images=new Set(['.png','.jpg','.jpeg','.webp','.bmp']);
 const videos=new Set(['.mp4','.mov','.m4v','.mkv','.webm','.avi']);
-const pictureFilter='scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1';
+// Off-ratio media sits on a blurred, dimmed copy of itself instead of black bars,
+// so neither the line art nor the Codex wallpaper shows hard letterbox edges.
+const pictureFilter='split=2[bg][fg];'+
+  '[bg]scale=320:180:force_original_aspect_ratio=increase,crop=320:180,boxblur=12:2,scale=1280:720,eq=brightness=-0.18:saturation=0.85[back];'+
+  '[fg]scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2[front];'+
+  '[back][front]overlay=(W-w)/2:(H-h)/2,setsar=1';
+// Rectangle of the sharp picture in the 640×360 tracing grid.
+export function pictureBounds(width,height){
+  if(!(width>0&&height>0))return [0,0,640,360];
+  const scale=Math.min(1280/width,720/height),w=Math.min(1280,width*scale),h=Math.min(720,height*scale);
+  return [Math.round((1280-w)/4),Math.round((720-h)/4),Math.round((1280+w)/4),Math.round((720+h)/4)];
+}
 async function run(bin,args){
   return new Promise((done,reject)=>{
     const child=spawn(bin,args,{windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -23,7 +34,7 @@ async function run(bin,args){
 export async function updateMedia({root=projectRoot,input:argument,ffmpeg=process.env.FFMPEG_BIN||'ffmpeg.exe',ffprobe=process.env.FFPROBE_BIN||(process.env.FFMPEG_BIN?join(dirname(ffmpeg),'ffprobe.exe'):'ffprobe.exe')}={}){
   const assets=join(root,'assets'),sourceDir=join(root,'素材');
   const settingsPath=join(sourceDir,'素材设置.json');
-  let settings={file:'启动视频.mp4',imageDurationSeconds:5};
+  let settings={file:'启动视频.mp4',imageDurationSeconds:2};
   try{settings={...settings,...JSON.parse((await readFile(settingsPath,'utf8')).replace(/^\uFEFF/,''))};}
   catch(error){if(error.code!=='ENOENT')throw new Error('素材/素材设置.json 无法读取，请检查 JSON 格式。');}
   if(typeof settings.file!=='string')throw new Error('素材设置中的 file 必须是素材文件名。');
@@ -35,10 +46,11 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
   if(!(await stat(input).catch(()=>null))?.isFile())throw new Error(`找不到素材：${input}`);
   async function probe(path){
     const data=JSON.parse((await run(ffprobe,['-v','error','-show_entries','format=duration:stream=codec_type,width,height','-of','json',path])).toString());
-    if(!data.streams?.some(stream=>stream.codec_type==='video'&&stream.width>0&&stream.height>0))throw new Error('素材中没有可读取的画面。');
-    return Number(data.format?.duration);
+    const picture=data.streams?.find(stream=>stream.codec_type==='video'&&stream.width>0&&stream.height>0);
+    if(!picture)throw new Error('素材中没有可读取的画面。');
+    return {duration:Number(data.format?.duration),width:picture.width,height:picture.height};
   }
-  const inputDuration=await probe(input);
+  const {duration:inputDuration,width:inputWidth,height:inputHeight}=await probe(input);
   if(type==='video'&&(!Number.isFinite(inputDuration)||inputDuration<1||inputDuration>120))throw new Error('请选择 1 到 120 秒的视频。');
   const imageSeconds=Number(settings.imageDurationSeconds);
   if(!Number.isFinite(imageSeconds)||imageSeconds<1||imageSeconds>120)throw new Error('素材设置中的 imageDurationSeconds 应为 1 到 120 秒。');
@@ -52,7 +64,7 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
       console.log('1/4 正在转换视频（1280×720、保留原始帧时间、静音）…');
       await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',input,'-an','-vf',pictureFilter,
         '-c:v','libx264','-preset','medium','-crf','25','-pix_fmt','yuv420p','-fps_mode','passthrough','-movflags','+faststart',movie]);
-      duration=await probe(movie);
+      ({duration}=await probe(movie));
       if((await stat(movie)).size>40*1024*1024)throw new Error('转换后的视频超过 40 MB，请选择更短的视频。');
       console.log('2/4 正在提取最后一帧…');
       await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',movie,'-an','-f','image2','-update','1',still]);
@@ -66,12 +78,13 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',still,'-vf','scale=640:360,format=rgba','-frames:v','1','-f','rawvideo',raw]);
     const pixels=await readFile(raw);
     if(pixels.length!==640*360*4)throw new Error('素材无法生成线稿。');
-    const {vectorize}=createRequire(import.meta.url)(join(root,'image-settings.js'));
-    const contours=vectorize(pixels,640,360);
+    const {vectorize,palette}=createRequire(import.meta.url)(join(root,'image-settings.js'));
+    const bounds=pictureBounds(inputWidth,inputHeight);
+    const contours=vectorize(pixels,640,360,{bounds});
     if(!contours.length)throw new Error('画面没有可用轮廓，请选择边缘更清晰的素材。');
     const durationMs=Math.round(duration*1000);
     const id=createHash('sha256').update(`${type}:${durationMs}:`).update(await readFile(type==='video'?movie:still)).digest('hex').slice(0,16);
-    const media={id,type,durationMs};
+    const media={id,type,durationMs,palette:palette(pixels,640,360,{bounds})};
     await writeFile(join(stage,'contours.js'),`window.CONTOUR_PATHS=${JSON.stringify(contours)};\n`);
     await writeFile(join(stage,'media-config.json'),JSON.stringify(media,null,2)+'\n');
     await writeFile(join(stage,'media-config.js'),`window.AEMEATH_MEDIA=${JSON.stringify(media)};\n`);

@@ -1,12 +1,12 @@
 {
   "name": "codex-startup-animation-windows",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Windows startup animation for Codex with custom video and image media",
   "engines": { "node": ">=22" },
   "scripts": {
     "setup": "node tools/bootstrap.mjs",
-    "test": "node tools/bootstrap.mjs && node --test tools/extension.test.mjs tools/playback.test.mjs tools/bootstrap.test.mjs",
+    "test": "node tools/bootstrap.mjs && node --test tools/extension.test.mjs tools/playback.test.mjs tools/bootstrap.test.mjs tools/tracing.test.mjs",
     "test:media": "node tools/bootstrap.mjs && node --test tools/media.test.mjs",
     "package": "node tools/package.mjs"
   }

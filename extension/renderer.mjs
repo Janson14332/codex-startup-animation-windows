@@ -6,7 +6,7 @@ export function installRenderer(payload, mount) {
   let ready=false,completed=false,phase='loading',wallpaperURL=null,lastImage=null;
   const playbackWatchdog=Math.max(25000,Number(payload.media?.durationMs||0)+12000);
   const root=document.documentElement;
-  const before=new Map(['--aemeath-wallpaper','--aemeath-wash'].map(key=>[key,[root.style.getPropertyValue(key),root.style.getPropertyPriority(key)]]));
+  const before=new Map(['--aemeath-wallpaper','--aemeath-wash','--aemeath-focus'].map(key=>[key,[root.style.getPropertyValue(key),root.style.getPropertyPriority(key)]]));
   const originalAttribute=root.getAttribute('data-aemeath-skin');
   const style=document.createElement('style');style.id='aemeath-extension-style';style.textContent=payload.skin;
   function removeOverlay(){
@@ -38,6 +38,7 @@ export function installRenderer(payload, mount) {
     }
     if(strength===0){root.style.removeProperty('--aemeath-wallpaper');if(wallpaperURL)URL.revokeObjectURL(wallpaperURL);wallpaperURL=null;lastImage=null;}
     root.style.setProperty('--aemeath-wash',String(1-strength/100));
+    if(/^(25|50|75)%$/.test(data.focus||''))root.style.setProperty('--aemeath-focus',data.focus);
     root.toggleAttribute('data-aemeath-skin',strength>0);
   }
   function show(settings=false){

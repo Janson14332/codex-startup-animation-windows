@@ -1,6 +1,6 @@
 # Codex Startup Animation · Windows
 
-给 Windows 上的 Codex 桌面应用添加自定义启动动画和静态壁纸。支持视频和图片素材，保留逐条碎线聚拢、完整线稿、打乱消失的动画，再播放视频或让图片逐渐点亮。
+给 Windows 上的 Codex 桌面应用添加自定义启动动画和静态壁纸。支持视频和图片素材：碎线逐条聚拢成线稿，画面在线稿下方亮起、线稿随之散开，最后平滑落到 Codex 壁纸上。线稿和强调色取自素材本身。
 
 这是基于 [panding999/codex-startup-animation](https://github.com/panding999/codex-startup-animation) 改造的非官方 Windows 外部启动器。来源及授权状态见 [NOTICE.md](NOTICE.md)。
 
@@ -30,13 +30,13 @@ winget install --id Gyan.FFmpeg -e
 | 素材 | 支持格式 | 播放效果 | 壁纸 |
 | --- | --- | --- | --- |
 | 视频 | MP4、MOV、M4V、MKV、WebM、AVI，1–120 秒 | 原线稿动画后完整播放；静音，保留原始帧时间 | 最后一帧 |
-| 图片 | PNG、JPG、JPEG、WebP、BMP | 原线稿动画后渐亮，默认 5 秒 | 所选图片 |
+| 图片 | PNG、JPG、JPEG、WebP、BMP | 在线稿下方渐亮，默认 2 秒 | 所选图片 |
 
-画面居中放入 1280×720 的 16:9 画幅，不拉伸。动态图片使用第一帧。转换后的视频上限为 40 MB。
+画面居中放入 1280×720 的 16:9 画幅，不拉伸；比例不符时两侧用同一画面的模糊暗化版本填充，不再出现黑边，线稿也不会描出画幅边界。动态图片使用第一帧。转换后的视频上限为 40 MB。
 
 图片渐亮时长可在 `素材/素材设置.json` 中修改 `imageDurationSeconds`（1–120 秒），再双击「更新动画.cmd」。配置中的 `file` 记录当前源文件，覆盖该文件后运行更新也可以替换素材。两类源文件可共存，选择或拖入文件即可切换。
 
-预览和正式启动共用项目素材，修改后刷新预览；已运行的 Codex 需退出后重新启动。动画结束后按 **Ctrl+Alt+B** 打开当前环境的图片与壁纸设置。该设置只保存在当前浏览器或 Codex 的 IndexedDB；要同步两边，请使用桌面更换素材入口。
+预览和正式启动共用项目素材，修改后刷新预览；已运行的 Codex 需退出后重新启动。动画播放中点击画面任意处或按 Esc 可跳过；系统开启「减少动态效果」时只做约 1 秒的淡入淡出。动画结束后按 **Ctrl+Alt+B** 打开当前环境的图片与壁纸设置（含壁纸显现程度与画面焦点）。该设置只保存在当前浏览器或 Codex 的 IndexedDB；要同步两边，请使用桌面更换素材入口。
 
 ## 源码与开发
 
@@ -51,7 +51,7 @@ npm run package
 
 `test:media` 需要 FFmpeg，验证图片与视频切换、错误输入、图片模式不依赖视频，以及变帧率素材的逐帧时间。`FFMPEG_BIN`、`FFPROBE_BIN` 可指定完整程序路径。
 
-`npm run package` 输出 `dist/codex-startup-animation-windows-v1.0.0.zip` 和 SHA-256 校验文件。发布包始终使用中性示例素材，按明确文件清单打包，不包含 `.git`、本机配置、日志和个人图片或视频。「更新动画.cmd」更新素材后也会重新生成这份示例发布包。
+`npm run package` 输出 `dist/codex-startup-animation-windows-v1.1.0.zip` 和 SHA-256 校验文件。发布包始终使用中性示例素材，按明确文件清单打包，不包含 `.git`、本机配置、日志和个人图片或视频。「更新动画.cmd」更新素材后也会重新生成这份示例发布包。
 
 ```text
 animation.js, style.css, index.html  动画与预览
