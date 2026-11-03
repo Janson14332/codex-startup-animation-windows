@@ -12,6 +12,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Parse PowerShell scripts
+        shell: powershell
+        run: |
+          $failed = $false
+          foreach ($file in Get-ChildItem -Recurse -Filter *.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $failed = $true; $errors | ForEach-Object { Write-Host "$($file.Name): $($_.Message) (line $($_.Extent.StartLineNumber))" } }
+          }
+          if ($failed) { exit 1 }
+      - name: Shortcut installer creates a hidden launcher
+        shell: powershell
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'shortcuts'; New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          & .\tools\install.ps1 -ShortcutDirectory $dir
+          $link = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $dir 'Codex 启动动画.lnk'))
+          Write-Host "$($link.TargetPath) $($link.Arguments)"
+          if ($link.Arguments -notmatch '-Notify' -or $link.Arguments -notmatch 'Hidden') { exit 1 }
       - run: npm test
       - run: choco install ffmpeg --no-progress -y
       - run: npm run test:media

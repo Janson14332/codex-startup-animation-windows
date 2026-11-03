@@ -6,11 +6,22 @@ $node = Get-Command node.exe -ErrorAction Stop
 if ($LASTEXITCODE -ne 0) { exit 1 }
 if (-not (Test-Path -LiteralPath $ShortcutDirectory -PathType Container)) { throw '快捷方式目录不存在。' }
 $shell = New-Object -ComObject WScript.Shell
+$powershell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$launchArguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + (Join-Path $projectRoot 'launch-windows.ps1') + '" -Notify'
 $start = $shell.CreateShortcut((Join-Path $ShortcutDirectory 'Codex 启动动画.lnk'))
-$start.TargetPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$start.Arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File "' + (Join-Path $projectRoot 'launch-windows.ps1') + '"'
+# conhost --headless (Windows 10 1809+) runs PowerShell with no console window at all,
+# even when Windows Terminal is the default terminal; failures are shown as a dialog.
+$conhost = Join-Path $env:WINDIR 'System32\conhost.exe'
+if ((Test-Path -LiteralPath $conhost) -and [Environment]::OSVersion.Version.Build -ge 17763) {
+    $start.TargetPath = $conhost
+    $start.Arguments = '--headless "' + $powershell + '" ' + $launchArguments
+} else {
+    $start.TargetPath = $powershell
+    $start.Arguments = $launchArguments
+}
 $start.WorkingDirectory = $projectRoot
 $start.WindowStyle = 7
+$start.IconLocation = $powershell + ',0'
 $start.Save()
 $preview = $shell.CreateShortcut((Join-Path $ShortcutDirectory 'Codex 动画预览.lnk'))
 $preview.TargetPath = Join-Path $projectRoot 'index.html'

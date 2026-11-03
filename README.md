@@ -21,7 +21,7 @@ winget install --id OpenJS.NodeJS.LTS -e
 winget install --id Gyan.FFmpeg -e
 ```
 
-移动项目目录后，重新双击「安装项目.cmd」更新桌面快捷方式。启动快捷方式使用最小化 PowerShell；查看启动错误可运行「扩展启动Codex.cmd」。
+移动项目目录后，重新双击「安装项目.cmd」更新桌面快捷方式。桌面「Codex 启动动画」完全隐藏运行，不显示命令行窗口；启动失败时会弹窗说明原因（同时写入 `.build/last-launch.log`）。需要看完整过程时运行「扩展启动Codex.cmd」。更新项目后请重新运行「安装项目.cmd」，桌面快捷方式才会改为隐藏方式。
 
 ## 自定义素材
 
