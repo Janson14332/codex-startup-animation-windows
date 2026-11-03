@@ -16,7 +16,7 @@ export async function ensureDefaults(root=projectRoot){
   for(const name of ['artwork.png','contours.js','media-config.json','media-config.js'])await copyFile(join(root,'examples',name),join(assets,name));
   const sourceDir=join(root,'素材');await mkdir(sourceDir,{recursive:true});
   if(!(await stat(join(sourceDir,'启动图片.png')).catch(()=>null)))await copyFile(join(root,'examples/artwork.png'),join(sourceDir,'启动图片.png'));
-  if(!(await stat(join(sourceDir,'素材设置.json')).catch(()=>null)))await writeFile(join(sourceDir,'素材设置.json'),JSON.stringify({file:'启动图片.png',imageDurationSeconds:5},null,2)+'\n');
+  if(!(await stat(join(sourceDir,'素材设置.json')).catch(()=>null)))await writeFile(join(sourceDir,'素材设置.json'),JSON.stringify({file:'启动图片.png',imageDurationSeconds:2},null,2)+'\n');
   return true;
 }
 if(resolve(process.argv[1]||'')===fileURLToPath(import.meta.url)){

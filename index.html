@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'">
-  <title>爱弥斯 · 光绘启动动画</title>
+  <title>Codex · 光绘启动动画</title>
   <link rel="stylesheet" href="style.css">
   <script src="assets/media-config.js" defer></script>
   <script src="assets/contours.js" defer></script>
@@ -13,8 +13,8 @@
 </head>
 <body>
   <main class="preview">
-    <header class="preview-heading"><span><i></i> AEMEATH</span><span>STARTUP SEQUENCE / 01</span></header>
-    <section class="window" aria-label="爱弥斯光绘启动动画">
+    <header class="preview-heading"><span><i></i> CODEX</span><span>STARTUP SEQUENCE / 01</span></header>
+    <section class="window" aria-label="Codex 光绘启动动画">
       <div class="end-screen" aria-live="polite">
         <span class="end-star">✧</span>
         <p class="eyebrow">CONNECTION ESTABLISHED</p>
@@ -28,8 +28,8 @@
         <canvas class="line-art" width="1280" height="720"></canvas>
         <div class="shade"></div>
         <div class="scanlines"></div>
-        <div class="light-sweep"></div>
         <div class="particles"></div>
+        <div class="end-wash"></div>
         <div class="hud">
           <div class="corner top-left"></div><div class="corner top-right"></div>
           <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
@@ -38,14 +38,12 @@
             <div class="sync-track"><div class="sync-fill"></div></div>
             <span class="sync-phase">INITIALIZING</span>
           </div>
-          <div class="coordinates"><span>RESONANCE / AEMEATH</span><span id="timecode">00:00:00</span></div>
+          <div class="coordinates"><span>CODEX / STARTUP</span><span id="timecode">00:00:00</span></div>
         </div>
         <div class="boot-grid"></div>
         <div class="boot-corners"><i class="corner top-left"></i><i class="corner top-right"></i><i class="corner bottom-left"></i><i class="corner bottom-right"></i></div>
         <div class="intro"><div class="pulse"><i></i><i></i><b></b></div></div>
-        <div class="transition-flash" aria-hidden="true"></div>
       </div>
-      <div class="shutter-line" aria-hidden="true"></div>
       <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
       <button id="image-settings" type="button">图片设置</button>
       <button class="skip" type="button" title="跳过动画（Esc）" aria-label="跳过动画">CLICK / ESC TO SKIP</button>
@@ -58,6 +56,7 @@
           <label class="image-choice"><img id="artwork-preview" src="assets/artwork.png" alt="当前背景"><span>当前环境的背景与线稿</span><small>临时覆盖为图片渐亮；项目素材由桌面更换入口管理</small><span class="choose-label">更换背景</span><input id="artwork-file" type="file" accept="image/png,image/jpeg,image/webp" aria-label="更换背景"></label>
         </div>
         <label class="wallpaper-setting" for="wallpaper-strength"><span>Codex 背景显现程度</span><output id="wallpaper-value">42%</output><input id="wallpaper-strength" type="range" min="0" max="75" step="1" value="42"><small>启动结束后，背景继续铺满窗口。0% 为不显示背景。</small></label>
+        <label class="wallpaper-setting" for="wallpaper-focus"><span>画面焦点</span><select id="wallpaper-focus"><option value="left">偏左</option><option value="center">居中</option><option value="right">偏右</option></select><small>窗口比图片更宽或更窄时，保留哪一侧。人物在一侧时可避开聊天区。</small></label>
         <p id="settings-status" role="status">图片保存在本机，不会上传。非标准比例会居中裁切。</p>
         <div class="settings-actions"><button id="reset-images" type="button">恢复默认图片</button><button id="preview-images" type="button">保存并预览</button></div>
         <button id="restore-appearance" type="button" hidden>关闭美化，恢复 Codex 外观</button>

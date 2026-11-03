@@ -1,1 +1,1 @@
-window.AEMEATH_MEDIA={"id":"587a572d4c2d1415","type":"image","durationMs":5000};
+window.AEMEATH_MEDIA={"id":"656cb6d1a7eca7fe","type":"image","durationMs":2000,"palette":{"line":"#cbe4f6","accent":"#83bae2","highlight":"#94cff9"}};

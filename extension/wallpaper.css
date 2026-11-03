@@ -23,7 +23,7 @@ html[data-aemeath-skin][data-theme=light],html[data-aemeath-skin]:has(body[data-
 html[data-aemeath-skin] body{
   background-color:rgb(var(--aemeath-base))!important;
   background-image:linear-gradient(rgb(var(--aemeath-base)/var(--aemeath-wash,.58)),rgb(var(--aemeath-base)/var(--aemeath-wash,.58))),var(--aemeath-wallpaper)!important;
-  background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-attachment:fixed!important;
+  background-size:cover!important;background-position:var(--aemeath-focus,50%) center!important;background-repeat:no-repeat!important;background-attachment:fixed!important;
 }
 html[data-aemeath-skin] :is(#root,[data-app-shell-frame],[data-app-shell-page-surface=true]){background:transparent!important}
 html[data-aemeath-skin] .app-shell-left-panel{background:rgb(var(--aemeath-base)/.18)!important}
