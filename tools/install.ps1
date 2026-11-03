@@ -41,7 +41,8 @@ Save-Shortcut 'Codex 动画预览.lnk' {
 }
 Save-Shortcut 'Codex 更换启动素材.lnk' {
     param($link)
-    $link.TargetPath = Join-Path $projectRoot '更换素材.cmd'
+    # ASCII relay to 更换素材.cmd; a non-ANSI target path cannot be stored on every system locale.
+    $link.TargetPath = Join-Path $PSScriptRoot 'change-media.cmd'
     $link.WorkingDirectory = $projectRoot
 }
 Write-Host '安装完成：启动、预览和更换素材快捷方式已创建。移动项目后，请重新运行安装。'
