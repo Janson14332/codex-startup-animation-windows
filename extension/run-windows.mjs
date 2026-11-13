@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { buildInjection } from './payload.mjs';
 import { connect, localSocket, pageTarget } from './cdp.mjs';
+import { guard } from './guard.mjs';
+import { readFile } from 'node:fs/promises';
 
 const execFile = promisify(rawExec);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -82,8 +84,14 @@ async function main() {
       for (let attempt = 0; attempt < 50; attempt++) {
         const answer = await client.call('Runtime.evaluate', { expression: 'globalThis.__aemeathExtension?.status()', returnByValue: true });
         const state = answer.result?.value;
-        if (state?.ready && state.phase === 'playing') { console.log('动画已开始。Ctrl+Alt+B 打开图片设置。'); return; }
-        if (state?.ready && state.phase === 'waiting-visible') { console.log('动画已就绪，Codex 窗口显示后开始播放。Ctrl+Alt+B 打开图片设置。'); return; }
+        if (state?.ready && (state.phase === 'playing' || state.phase === 'waiting-visible')) {
+          console.log(state.phase === 'playing' ? '动画已开始。Ctrl+Alt+B 打开图片设置。' : '动画已就绪，Codex 窗口显示后开始播放。Ctrl+Alt+B 打开图片设置。');
+          client.close(); client = null;
+          // Stay until the animation finishes: re-inject if Codex reloads or swaps its window.
+          const media = JSON.parse(await readFile(resolve(root, 'assets/media-config.json'), 'utf8'));
+          await guard({ port, source, durationMs: Number(media.durationMs) || 5000 });
+          return;
+        }
         if (state?.phase === 'failed' || state?.phase === 'timeout') throw new Error('动画素材加载失败');
         await delay(100);
       }
