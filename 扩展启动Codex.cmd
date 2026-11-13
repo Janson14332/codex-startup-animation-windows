@@ -7,7 +7,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-windows.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch-windows.ps1" -Console
 if errorlevel 1 (
   echo.
   echo 请查看上方提示，按任意键关闭窗口。
