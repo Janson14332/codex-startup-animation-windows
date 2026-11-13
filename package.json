@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "setup": "node tools/bootstrap.mjs",
-    "test": "node tools/bootstrap.mjs && node --test tools/extension.test.mjs tools/playback.test.mjs tools/bootstrap.test.mjs tools/tracing.test.mjs",
+    "test": "node tools/bootstrap.mjs && node --test tools/extension.test.mjs tools/playback.test.mjs tools/bootstrap.test.mjs tools/tracing.test.mjs tools/guard.test.mjs",
     "test:media": "node tools/bootstrap.mjs && node --test tools/media.test.mjs",
     "package": "node tools/package.mjs"
   }
