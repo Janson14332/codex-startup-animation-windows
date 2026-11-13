@@ -1,7 +1,10 @@
-﻿param([switch]$IsolatedTest, [switch]$Notify)
+﻿param([switch]$IsolatedTest, [switch]$Console, [switch]$Notify)
 $ErrorActionPreference = 'Stop'
-# -Notify is used by the hidden desktop shortcut: there is no console to read, so any
-# failure is shown in a dialog instead, and success shows nothing at all.
+# By default the launcher assumes nobody is watching a console (desktop shortcuts, in any
+# window style and from any install version): questions and failures appear as dialogs and
+# every step is logged. Only 扩展启动Codex.cmd passes -Console to keep the visible text mode.
+# -Notify is still accepted from older shortcuts and is now the default.
+$Notify = -not $Console
 $log = Join-Path $PSScriptRoot '.build\last-launch.log'
 
 # The hidden shortcut has no console, so every launch (not only failures) leaves a log.
