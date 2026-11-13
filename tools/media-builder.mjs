@@ -8,6 +8,9 @@ import {fileURLToPath} from 'node:url';
 const projectRoot=dirname(dirname(fileURLToPath(import.meta.url)));
 const images=new Set(['.png','.jpg','.jpeg','.webp','.bmp']);
 const videos=new Set(['.mp4','.mov','.m4v','.mkv','.webm','.avi']);
+// Animated GIFs become the reveal video (looped to a minimum length); a single-frame GIF is
+// an ordinary image.
+const gifs=new Set(['.gif']);
 // Off-ratio media sits on a blurred, dimmed copy of itself instead of black bars,
 // so neither the line art nor the Codex wallpaper shows hard letterbox edges.
 const pictureFilter='split=2[bg][fg];'+
@@ -34,15 +37,15 @@ async function run(bin,args){
 export async function updateMedia({root=projectRoot,input:argument,ffmpeg=process.env.FFMPEG_BIN||'ffmpeg.exe',ffprobe=process.env.FFPROBE_BIN||(process.env.FFMPEG_BIN?join(dirname(ffmpeg),'ffprobe.exe'):'ffprobe.exe')}={}){
   const assets=join(root,'assets'),sourceDir=join(root,'素材');
   const settingsPath=join(sourceDir,'素材设置.json');
-  let settings={file:'启动视频.mp4',imageDurationSeconds:2};
+  let settings={file:'启动视频.mp4',imageDurationSeconds:2,gifSeconds:4};
   try{settings={...settings,...JSON.parse((await readFile(settingsPath,'utf8')).replace(/^\uFEFF/,''))};}
   catch(error){if(error.code!=='ENOENT')throw new Error('素材/素材设置.json 无法读取，请检查 JSON 格式。');}
   if(typeof settings.file!=='string')throw new Error('素材设置中的 file 必须是素材文件名。');
   const configured=resolve(sourceDir,settings.file);
   if(!configured.startsWith(resolve(sourceDir)+sep))throw new Error('素材设置中的文件必须位于素材文件夹内。');
   const input=resolve(argument||configured),extension=extname(input).toLowerCase();
-  const type=images.has(extension)?'image':videos.has(extension)?'video':null;
-  if(!type)throw new Error('请选择 MP4、MOV、M4V、MKV、WebM、AVI 视频，或 PNG、JPG、JPEG、WebP、BMP 图片。');
+  let type=images.has(extension)?'image':videos.has(extension)?'video':gifs.has(extension)?'gif':null;
+  if(!type)throw new Error('请选择 MP4、MOV、M4V、MKV、WebM、AVI 视频，GIF 动图，或 PNG、JPG、JPEG、WebP、BMP 图片。');
   if(!(await stat(input).catch(()=>null))?.isFile())throw new Error(`找不到素材：${input}`);
   async function probe(path){
     const data=JSON.parse((await run(ffprobe,['-v','error','-show_entries','format=duration:stream=codec_type,width,height','-of','json',path])).toString());
@@ -51,7 +54,18 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     return {duration:Number(data.format?.duration),width:picture.width,height:picture.height};
   }
   const {duration:inputDuration,width:inputWidth,height:inputHeight}=await probe(input);
-  if(type==='video'&&(!Number.isFinite(inputDuration)||inputDuration<1||inputDuration>120))throw new Error('请选择 1 到 120 秒的视频。');
+  const gifSeconds=Number(settings.gifSeconds);
+  if(!Number.isFinite(gifSeconds)||gifSeconds<1||gifSeconds>120)throw new Error('素材设置中的 gifSeconds 应为 1 到 120 秒。');
+  let loops=0;
+  if(type==='gif'){
+    const frames=Number((await run(ffprobe,['-v','error','-count_packets','-select_streams','v:0','-show_entries','stream=nb_read_packets','-of','csv=p=0',input])).toString().trim());
+    if(!(frames>1)||!(inputDuration>0))type='image';
+    // Whole loops only, so the clip always ends on the GIF's own last frame.
+    else loops=Math.max(0,Math.min(Math.ceil(gifSeconds/inputDuration),Math.floor(120/inputDuration))-1);
+  }
+  const animatedGif=type==='gif';
+  if(animatedGif)type='video';
+  if(type==='video'&&!animatedGif&&(!Number.isFinite(inputDuration)||inputDuration<1||inputDuration>120))throw new Error('请选择 1 到 120 秒的视频。');
   const imageSeconds=Number(settings.imageDurationSeconds);
   if(!Number.isFinite(imageSeconds)||imageSeconds<1||imageSeconds>120)throw new Error('素材设置中的 imageDurationSeconds 应为 1 到 120 秒。');
   await mkdir(assets,{recursive:true});
@@ -61,10 +75,11 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     const movie=join(stage,'reveal.mp4'),still=join(stage,'artwork.png'),raw=join(stage,'pixels.rgba');
     let duration;
     if(type==='video'){
-      console.log('1/4 正在转换视频（1280×720、保留原始帧时间、静音）…');
-      await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',input,'-an','-vf',pictureFilter,
+      console.log(animatedGif?`1/4 正在转换动图（1280×720、保留帧时间、共播放 ${loops+1} 遍）…`:'1/4 正在转换视频（1280×720、保留原始帧时间、静音）…');
+      await run(ffmpeg,['-hide_banner','-loglevel','error','-y',...(animatedGif?['-stream_loop',String(loops)]:[]),'-i',input,'-an','-vf',pictureFilter,
         '-c:v','libx264','-preset','medium','-crf','25','-pix_fmt','yuv420p','-fps_mode','passthrough','-movflags','+faststart',movie]);
       ({duration}=await probe(movie));
+      if(animatedGif&&!(duration>=1))throw new Error('动图太短，请把 gifSeconds 设为 1 秒以上。');
       if((await stat(movie)).size>40*1024*1024)throw new Error('转换后的视频超过 40 MB，请选择更短的视频。');
       console.log('2/4 正在提取最后一帧…');
       await run(ffmpeg,['-hide_banner','-loglevel','error','-y','-i',movie,'-an','-f','image2','-update','1',still]);
@@ -88,7 +103,7 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     await writeFile(join(stage,'contours.js'),`window.CONTOUR_PATHS=${JSON.stringify(contours)};\n`);
     await writeFile(join(stage,'media-config.json'),JSON.stringify(media,null,2)+'\n');
     await writeFile(join(stage,'media-config.js'),`window.AEMEATH_MEDIA=${JSON.stringify(media)};\n`);
-    const sourceName=(type==='image'?'启动图片':'启动视频')+extension;
+    const sourceName=(gifs.has(extension)?'启动动图':type==='image'?'启动图片':'启动视频')+extension;
     const source=join(sourceDir,sourceName);
     await mkdir(sourceDir,{recursive:true});
     // Finish decoding and tracing before replacing any active animation assets.
@@ -96,9 +111,10 @@ export async function updateMedia({root=projectRoot,input:argument,ffmpeg=proces
     console.log('4/4 正在更新预览、启动素材和配置…');
     const names=['artwork.png','contours.js',...(type==='video'?['reveal.mp4']:[]),'media-config.json','media-config.js'];
     for(const name of names)await copyFile(join(stage,name),join(assets,name));
-    await writeFile(settingsPath,JSON.stringify({file:sourceName,imageDurationSeconds:imageSeconds},null,2)+'\n');
+    await writeFile(settingsPath,JSON.stringify({file:sourceName,imageDurationSeconds:imageSeconds,gifSeconds},null,2)+'\n');
     if(type==='image')await rm(join(assets,'reveal.mp4'),{force:true});
-    console.log(`完成：${type==='video'?'视频':'图片渐亮'} ${duration.toFixed(2)} 秒，线稿 ${contours.length} 条。预览和正式启动已同步。`);
+    const label=animatedGif?`动图（播放 ${loops+1} 遍）`:type==='video'?'视频':'图片渐亮';
+    console.log(`完成：${label} ${duration.toFixed(2)} 秒，线稿 ${contours.length} 条。预览和正式启动已同步。`);
     return media;
   }finally{await rm(stage,{recursive:true,force:true});}
 }

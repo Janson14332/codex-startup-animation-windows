@@ -53,3 +53,31 @@ test('图片与视频可互换，图片不依赖视频文件，视频保留逐�
     await rm(root,{recursive:true,force:true});
   }
 });
+
+test('动图转为视频并循环到 gifSeconds，单帧 GIF 按图片处理',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'codex-media-test-'));
+  try{
+    await mkdir(join(root,'assets'));await mkdir(join(root,'extension'));
+    for(const name of ['index.html','style.css','image-settings.js','animation.js','extension/wallpaper.css'])await copyFile(join(project,name),join(root,name));
+    // 0.6 s animated GIF, square, so it also exercises the blurred side fill.
+    const animated=join(root,'循环 动图.gif');
+    await exec(ffmpeg,['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','testsrc2=size=240x240:rate=10:duration=0.6',animated],{windowsHide:true});
+    const media=await updateMedia({root,input:animated,ffmpeg,ffprobe});
+    assert.equal(media.type,'video');
+    // Default gifSeconds 4 → 7 whole plays of 0.6 s.
+    assert.ok(media.durationMs>=4000&&media.durationMs<=4400,`duration ${media.durationMs}`);
+    assert.ok((await stat(join(root,'assets/reveal.mp4'))).isFile());
+    const settings=JSON.parse(await readFile(join(root,'素材/素材设置.json'),'utf8'));
+    assert.equal(settings.file,'启动动图.gif');assert.equal(settings.gifSeconds,4);
+    const injection=await buildInjection(root);new Function(injection);
+    assert.match(injection,/"reveal":"data:video\/mp4;base64,/);
+    const still=join(root,'静态.gif');
+    await exec(ffmpeg,['-hide_banner','-loglevel','error','-y','-f','lavfi','-i','testsrc2=size=320x180','-frames:v','1',still],{windowsHide:true});
+    const image=await updateMedia({root,input:still,ffmpeg,ffprobe});
+    assert.equal(image.type,'image');
+    assert.equal(await stat(join(root,'assets/reveal.mp4')).catch(()=>null),null);
+  }finally{
+    if(!resolve(root).startsWith(resolve(tmpdir())+sep)||!root.includes('codex-media-test-'))throw new Error('Unsafe test cleanup path');
+    await rm(root,{recursive:true,force:true});
+  }
+});

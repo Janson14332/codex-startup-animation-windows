@@ -129,7 +129,7 @@
   }
   async function importImage(file,kind){
     if(file.size>30*1024*1024)throw new Error('请选择小于 30 MB 的图片。');
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type))throw new Error('请选择 PNG、JPEG 或 WebP 图片。');
+    if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw new Error('请选择 PNG、JPEG、WebP 或 GIF 图片。'); // GIF here uses its first frame
     const url=URL.createObjectURL(file),img=new Image();
     try{
       img.src=url;await img.decode();
